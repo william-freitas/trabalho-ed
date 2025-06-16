@@ -50,6 +50,10 @@ public class Professor {
 	public int getPontos() {
 		return pontos;
 	}
+	
+	public void setPontos(int pontos) {
+		this.pontos = pontos;
+	}
 
 
 	@Override

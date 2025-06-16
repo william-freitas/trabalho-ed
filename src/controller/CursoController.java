@@ -1,98 +1,245 @@
 package controller;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 import br.edu.fateczl.Lista.Lista;
 import br.edu.fateczl.filaObj.Fila;
 import model.Curso;
 
-public class CursoController {
+public class CursoController implements ActionListener {
 
-    private static final String ARQUIVO = "dados/cursos.csv";
+    private JTextField tfCursoCodigo;
+    private JTextField tfCursoNome;
+    private JTextField tfCursoAreaConhecimento;
+    private JTextArea textAreaCurso;
 
-    public void insereCurso(Curso curso) throws Exception {
-        Lista<Curso> listaArquivoCurso = lerArquivoCursoCsv();
-        listaArquivoCurso.addLast(curso);
-        gravarArquivoCursoCsv(listaArquivoCurso);
+    public CursoController(JTextField tfCursoCodigo, JTextField tfCursoNome,
+                           JTextField tfCursoAreaConhecimento, JTextArea textAreaCurso) {
+        this.tfCursoCodigo = tfCursoCodigo;
+        this.tfCursoNome = tfCursoNome;
+        this.tfCursoAreaConhecimento = tfCursoAreaConhecimento;
+        this.textAreaCurso = textAreaCurso;
     }
 
-    public void atualizaCurso(int codigo, Curso novoCurso) throws Exception {
-        Lista<Curso> listaArquivoCurso = lerArquivoCursoCsv();
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String comando = e.getActionCommand();
+
+        try {
+            if (comando.equals("Cadastrar")) {
+                cadastraCurso();
+            } else if (comando.equals("Consultar")) {
+                consultaCurso();
+            } else if (comando.equals("Atualizar")) {
+                atualizaCurso();
+            } else if (comando.equals("Remover")) {
+                removeCurso();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void cadastraCurso() throws IOException {
+        Curso curso = new Curso();
+        curso.setCodigoCurso(Integer.parseInt(tfCursoCodigo.getText()));
+        curso.setNomeCurso(tfCursoNome.getText());
+        curso.setAreaConhecimento(tfCursoAreaConhecimento.getText());
+
+        gravarArquivoCursoCsv(curso.toString());
+
+        limparCampos();
+        textAreaCurso.setText("Curso cadastrado!");
+    }
+
+    private void consultaCurso() throws Exception {
+        int codigoBusca = Integer.parseInt(tfCursoCodigo.getText());
+
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "cursos.csv");
+
+        Fila filaCursos = new Fila();
+
+        if (arquivo.exists() && arquivo.isFile()) {
+            BufferedReader br = new BufferedReader(new FileReader(arquivo));
+            String linha;
+
+            while ((linha = br.readLine()) != null) {
+                String[] campos = linha.split(";");
+                int codigoCurso = Integer.parseInt(campos[0]);
+                String nomeCurso = campos[1];
+                String areaConhecimento = campos[2];
+
+                Curso curso = new Curso(codigoCurso, nomeCurso, areaConhecimento);
+                filaCursos.insert(curso);
+            }
+
+            br.close();
+        }
+
+        boolean encontrado = false;
+
+        while (!filaCursos.isEmpty()) {
+            Curso c = (Curso) filaCursos.remove();
+            if (c.getCodigoCurso() == codigoBusca) {
+                textAreaCurso.setText(
+                    "Nome: " + c.getNomeCurso() +
+                    "\nÁrea: " + c.getAreaConhecimento()
+                );
+                encontrado = true;
+                break;
+            }
+        }
+
+        if (!encontrado) {
+            textAreaCurso.setText("Curso não encontrado.");
+        }
+
+        limparCampos();
+    }
+
+    private void atualizaCurso() throws Exception {
+        Lista<Curso> listaCursos = lerArquivoCursoCsv();
+
+        if (listaCursos.isEmpty()) {
+            throw new Exception("Não há cursos cadastrados para atualizar.");
+        }
+
+        Curso cursoAtualizado = new Curso();
+        cursoAtualizado.setCodigoCurso(Integer.parseInt(tfCursoCodigo.getText()));
+
         boolean atualizado = false;
 
-        for (int i = 0; i < listaArquivoCurso.size(); i++) {
-            if (listaArquivoCurso.get(i).getCodigoCurso() == codigo) {
-                listaArquivoCurso.remove(i);
-                listaArquivoCurso.add(novoCurso, i);
+        for (int i = 0; i < listaCursos.size(); i++) {
+            Curso curso = listaCursos.get(i);
+            if (curso.getCodigoCurso() == cursoAtualizado.getCodigoCurso()) {
+                curso.setNomeCurso(tfCursoNome.getText());
+                curso.setAreaConhecimento(tfCursoAreaConhecimento.getText());
                 atualizado = true;
                 break;
             }
         }
 
         if (!atualizado) {
-            throw new Exception("Curso com código " + codigo + " não encontrado.");
+            throw new Exception("Curso com código " + cursoAtualizado.getCodigoCurso() + " não encontrado.");
         }
 
-        gravarArquivoCursoCsv(listaArquivoCurso);
+        gravarArquivoCursoCsv(listaCursos);
+
+        limparCampos();
+        textAreaCurso.setText("Curso atualizado!");
     }
 
-    public void removeCurso(int codigo) throws Exception {
-        Lista<Curso> listaArquivoCurso = lerArquivoCursoCsv();
+    private void removeCurso() throws Exception {
+        Lista<Curso> listaCursos = lerArquivoCursoCsv();
+
+        if (listaCursos.isEmpty()) {
+            throw new Exception("Não há cursos cadastrados para remover.");
+        }
+
+        int codigoRemover = Integer.parseInt(tfCursoCodigo.getText());
         boolean removido = false;
 
-        for (int i = 0; i < listaArquivoCurso.size(); i++) {
-            if (listaArquivoCurso.get(i).getCodigoCurso() == codigo) {
-                listaArquivoCurso.remove(i);
+        for (int i = 0; i < listaCursos.size(); i++) {
+            Curso curso = listaCursos.get(i);
+            if (curso.getCodigoCurso() == codigoRemover) {
+                listaCursos.remove(i);
                 removido = true;
                 break;
             }
         }
 
         if (!removido) {
-            throw new Exception("Curso com código " + codigo + " não encontrado.");
+            throw new Exception("Curso com código " + codigoRemover + " não encontrado.");
         }
 
-        gravarArquivoCursoCsv(listaArquivoCurso);
+        gravarArquivoCursoCsv(listaCursos);
+
+        limparCampos();
+        textAreaCurso.setText("Curso removido!");
     }
 
-    public Fila consultaCursos() throws Exception {
-        Lista<Curso> listaArquivoCurso = lerArquivoCursoCsv();
-        Fila filaCursos = new Fila();
-        for (int i = 0; i < listaArquivoCurso.size(); i++) {
-            filaCursos.insert(listaArquivoCurso.get(i));
+    private void gravarArquivoCursoCsv(String curso) throws IOException {
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File dir = new File(path);
+
+        if (!dir.exists()) {
+            dir.mkdir();
         }
-        return filaCursos;
+
+        File arquivo = new File(path, "cursos.csv");
+        boolean existe = arquivo.exists();
+
+        FileWriter fw = new FileWriter(arquivo, existe);
+        PrintWriter pw = new PrintWriter(fw);
+
+        pw.write(curso + "\r\n");
+
+        pw.flush();
+        pw.close();
+        fw.close();
+    }
+
+    private void gravarArquivoCursoCsv(Lista<Curso> lista) throws Exception {
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File dir = new File(path);
+
+        if (!dir.exists()) {
+            dir.mkdir();
+        }
+
+        File arquivo = new File(path, "cursos.csv");
+
+        FileWriter fw = new FileWriter(arquivo, false);
+        PrintWriter pw = new PrintWriter(fw);
+
+        for (int i = 0; i < lista.size(); i++) {
+            Curso curso = lista.get(i);
+            pw.println(curso.toString());
+        }
+
+        pw.flush();
+        pw.close();
+        fw.close();
     }
 
     private Lista<Curso> lerArquivoCursoCsv() throws Exception {
         Lista<Curso> lista = new Lista<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(ARQUIVO))) {
-            String linha;
-            while ((linha = reader.readLine()) != null) {
+
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "cursos.csv");
+
+        if (!arquivo.exists()) {
+            return lista;
+        }
+
+        BufferedReader br = new BufferedReader(new FileReader(arquivo));
+        String linha;
+
+        while ((linha = br.readLine()) != null) {
+            if (!linha.trim().isEmpty()) {
                 String[] campos = linha.split(";");
-                Curso curso = new Curso(
-                    Integer.parseInt(campos[0]), campos[1], campos[2]
-                );
+
+                int codigoCurso = Integer.parseInt(campos[0]);
+                String nomeCurso = campos[1];
+                String areaConhecimento = campos[2];
+
+                Curso curso = new Curso(codigoCurso, nomeCurso, areaConhecimento);
                 lista.addLast(curso);
             }
         }
+
+        br.close();
         return lista;
     }
 
-    private void gravarArquivoCursoCsv(Lista<Curso> lista) throws Exception {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(ARQUIVO))) {
-            for (int i = 0; i < lista.size(); i++) {
-                Curso c = lista.get(i);
-                String linha = c.getCodigoCurso() + ";" +
-                               c.getNomeCurso() + ";" +
-                               c.getAreaConhecimento();
-                writer.write(linha);
-                writer.newLine();
-            }
-        }
-        System.out.println("Arquivo de cursos gravado com sucesso!");
+    private void limparCampos() {
+        tfCursoCodigo.setText("");
+        tfCursoNome.setText("");
+        tfCursoAreaConhecimento.setText("");
     }
 }

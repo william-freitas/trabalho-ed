@@ -3,6 +3,7 @@ package controller;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -92,81 +93,168 @@ public class DisciplinaController implements ActionListener{
 
 	// CADASTRA no final da lista
     private void cadastraDisciplina() throws Exception {
-    	
-    	Disciplina disciplina = new Disciplina();
-    	
-    	disciplina.setCodigoDisciplina(Integer.parseInt(tfDisciplinaCodigo.getText()));
-    	disciplina.setNomeDisciplina(tfDisciplinaNome.getText());
-    	disciplina.setDiaSemana(tfDisciplinaDiaDaSemana.getText());
-    	disciplina.setHorarioAula(tfDisciplinaHorarioDaAula.getText());
-    	disciplina.setHorasDiarias(Integer.parseInt(tfDisciplinaHorasDiarias.getText()));
-    	disciplina.setCodigoCurso(Integer.parseInt(tfDisciplinaCodigoCurso.getText()));
-    	
-    	//manda gravar em formato String para o csv
-    	gravarArquivoDisciplinaCsv2(disciplina.toString());
-    	
-    	//para apagar os campos:
-    	tfDisciplinaCodigo.setText("");
-    	tfDisciplinaNome.setText("");
-    	tfDisciplinaDiaDaSemana.setText("");
-    	tfDisciplinaHorarioDaAula.setText("");
-    	tfDisciplinaHorasDiarias.setText("");
-    	tfDisciplinaCodigoCurso.setText("");
-    	
-    	taDisciplina.setText("Disciplina cadastrada");
+        int codigoDisciplina = Integer.parseInt(tfDisciplinaCodigo.getText());
+        String nomeDisciplina = tfDisciplinaNome.getText();
+        String diaSemana = tfDisciplinaDiaDaSemana.getText();
+        String horarioAula = tfDisciplinaHorarioDaAula.getText();
+        int horasDiarias = Integer.parseInt(tfDisciplinaHorasDiarias.getText());
+        int codigoCurso = Integer.parseInt(tfDisciplinaCodigoCurso.getText());
+
+        boolean cursoExiste = validarCurso(codigoCurso);
+        boolean disciplinaExiste = validarDisciplina(codigoDisciplina);
+
+        if (!cursoExiste) {
+            taDisciplina.setText("Erro: Curso não encontrado. Cadastre o curso antes de cadastrar a disciplina.");
+            return;
+        }
+
+        if (disciplinaExiste) {
+            taDisciplina.setText("Erro: Código da disciplina já cadastrado. Use outro código.");
+            return;
+        }
+
+        Disciplina disciplina = new Disciplina();
+        disciplina.setCodigoDisciplina(codigoDisciplina);
+        disciplina.setNomeDisciplina(nomeDisciplina);
+        disciplina.setDiaSemana(diaSemana);
+        disciplina.setHorarioAula(horarioAula);
+        disciplina.setHorasDiarias(horasDiarias);
+        disciplina.setCodigoCurso(codigoCurso);
+
+        gravarArquivoDisciplinaCsv2(disciplina.toString());
+
+        // Limpar campos
+        tfDisciplinaCodigo.setText("");
+        tfDisciplinaNome.setText("");
+        tfDisciplinaDiaDaSemana.setText("");
+        tfDisciplinaHorarioDaAula.setText("");
+        tfDisciplinaHorasDiarias.setText("");
+        tfDisciplinaCodigoCurso.setText("");
+
+        taDisciplina.setText("Disciplina cadastrada com sucesso.");
     }
+
+    private boolean validarCurso(int codigoCurso) throws Exception {
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "cursos.csv");
+
+        if (!arquivo.exists()) {
+            return false;
+        }
+
+        BufferedReader br = new BufferedReader(new FileReader(arquivo));
+        String linha;
+        boolean encontrado = false;
+
+        while ((linha = br.readLine()) != null) {
+            String[] campos = linha.split(";");
+            int codigoArquivo = Integer.parseInt(campos[0]);
+
+            if (codigoArquivo == codigoCurso) {
+                encontrado = true;
+                break;
+            }
+        }
+
+        br.close();
+        return encontrado;
+    }
+
+    private boolean validarDisciplina(int codigoDisciplina) throws Exception {
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "disciplinas.csv");
+
+        if (!arquivo.exists()) {
+            return false;
+        }
+
+        BufferedReader br = new BufferedReader(new FileReader(arquivo));
+        String linha;
+        boolean encontrado = false;
+
+        while ((linha = br.readLine()) != null) {
+            String[] campos = linha.split(";");
+            int codigoArquivo = Integer.parseInt(campos[0]);
+
+            if (codigoArquivo == codigoDisciplina) {
+                encontrado = true;
+                break;
+            }
+        }
+
+        br.close();
+        return encontrado;
+    }
+
     
     
     // CONSULTA usando FILA: todas as disciplinas são inseridas na fila
     private void consultaDisciplina() throws Exception {
-    	
-    	Disciplina disciplina = new Disciplina();
-    	disciplina.setCodigoDisciplina(Integer.parseInt(tfDisciplinaCodigo.getText()));
-    	
-    	String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-		File arquivo = new File(path,"disciplinas.csv");
-		
-		if(arquivo.exists() && arquivo.isFile()) {
-			FileInputStream fis = new FileInputStream(arquivo);
-			InputStreamReader isr = new InputStreamReader(fis);
-			BufferedReader buffer = new BufferedReader(isr);
-			
-			String linha = buffer.readLine();
-			
-			while(linha != null){
-				String[] vetLinha = linha.split(";");
-				if (Integer.parseInt(vetLinha[0]) == disciplina.getCodigoDisciplina()) {
-					disciplina.setNomeDisciplina(vetLinha[1]); 
-					disciplina.setDiaSemana(vetLinha[2]);
-					disciplina.setHorarioAula(vetLinha[3]);
-					disciplina.setHorasDiarias(Integer.parseInt(vetLinha[4]));
-					disciplina.setCodigoCurso(Integer.parseInt(vetLinha[5]));
-					break;
-				}
-				linha = buffer.readLine();
-			}
-			buffer.close();
-			isr.close();
-			fis.close();
-			
-		}
-		
-		if(disciplina.getNomeDisciplina() != null) {
-			taDisciplina.setText("nome: "+disciplina.getNomeDisciplina()+
-					" dia da semana: "+disciplina.getDiaSemana());
-		}else {
-			taDisciplina.setText("Disciplina não encontrada");
-		}
-		
-		//para apagar os campos:
-    	tfDisciplinaCodigo.setText("");
-    	tfDisciplinaNome.setText("");
-    	tfDisciplinaDiaDaSemana.setText("");
-    	tfDisciplinaHorarioDaAula.setText("");
-    	tfDisciplinaHorasDiarias.setText("");
-    	tfDisciplinaCodigoCurso.setText("");
-		
+        
+        int codigoBusca = Integer.parseInt(tfDisciplinaCodigo.getText());
+        
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "disciplinas.csv");
+
+        Fila filaDisciplinas = new Fila();
+
+        if (arquivo.exists() && arquivo.isFile()) {
+            FileInputStream fis = new FileInputStream(arquivo);
+            InputStreamReader isr = new InputStreamReader(fis);
+            BufferedReader buffer = new BufferedReader(isr);
+
+            String linha = buffer.readLine();
+
+            while (linha != null) {
+                String[] campos = linha.split(";");
+                int codigoDisciplina = Integer.parseInt(campos[0]);
+                String nomeDisciplina = campos[1];
+                String diaSemana = campos[2];
+                String horarioAula = campos[3];
+                int horasDiarias = Integer.parseInt(campos[4]);
+                int codigoCurso = Integer.parseInt(campos[5]);
+
+                Disciplina disciplina = new Disciplina(codigoDisciplina, nomeDisciplina, diaSemana, horarioAula, horasDiarias, codigoCurso);
+                filaDisciplinas.insert(disciplina);  // Insere na fila
+
+                linha = buffer.readLine();
+            }
+
+            buffer.close();
+            isr.close();
+            fis.close();
+        }
+
+        boolean encontrada = false;
+
+        while (!filaDisciplinas.isEmpty()) {
+            Disciplina d = (Disciplina) filaDisciplinas.remove();
+            if (d.getCodigoDisciplina() == codigoBusca) {
+                taDisciplina.setText(
+                    "Nome: " + d.getNomeDisciplina() +
+                    "\nDia da Semana: " + d.getDiaSemana() +
+                    "\nHorário da Aula: " + d.getHorarioAula() +
+                    "\nHoras Diárias: " + d.getHorasDiarias() +
+                    "\nCódigo do Curso: " + d.getCodigoCurso()
+                );
+                encontrada = true;
+                break;
+            }
+        }
+
+        if (!encontrada) {
+            taDisciplina.setText("Disciplina não encontrada.");
+        }
+
+        // Limpar os campos após a consulta
+        tfDisciplinaCodigo.setText("");
+        tfDisciplinaNome.setText("");
+        tfDisciplinaDiaDaSemana.setText("");
+        tfDisciplinaHorarioDaAula.setText("");
+        tfDisciplinaHorasDiarias.setText("");
+        tfDisciplinaCodigoCurso.setText("");
     }
+
     
     // ATUALIZA posição da lista
     private void atualizaDisciplina() throws Exception {
@@ -247,6 +335,8 @@ public class DisciplinaController implements ActionListener{
 
     	    gravarArquivoDisciplinaCsv2(listaArquivoDisciplina);
     	    
+    	    removerDisciplinaDasInscricoes(removerDisciplina.getCodigoDisciplina());
+    	    
     	  //para apagar os campos:
         	tfDisciplinaCodigo.setText("");
         	tfDisciplinaNome.setText("");
@@ -258,6 +348,42 @@ public class DisciplinaController implements ActionListener{
         	taDisciplina.setText("Disciplina removida");
     }
 
+
+    private void removerDisciplinaDasInscricoes(int codDisciplina) throws Exception {
+        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
+        File arquivo = new File(path, "inscricoes.csv");
+
+        if (!arquivo.exists()) {
+            // Se o arquivo ainda nem existir, não precisa fazer nada
+            return;
+        }
+
+        File tempFile = new File(path, "inscricoes_temp.csv");
+
+        BufferedReader br = new BufferedReader(new FileReader(arquivo));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile));
+
+        String linha;
+
+        while ((linha = br.readLine()) != null) {
+            String[] campos = linha.split(";");
+
+            int codigoDisciplinaNaLinha = Integer.parseInt(campos[1]);  // Supondo que campo 1 é o código da disciplina na inscrição
+
+            if (codigoDisciplinaNaLinha != codDisciplina) {
+                // Só grava as inscrições que não têm o código da disciplina que está sendo removida
+                bw.write(linha);
+                bw.newLine();
+            }
+        }
+
+        br.close();
+        bw.close();
+
+        // Agora substitui o arquivo original pelo temporário
+        arquivo.delete();
+        tempFile.renameTo(arquivo);
+    }
 
 
  
