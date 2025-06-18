@@ -12,7 +12,6 @@ public class Professor {
 		
 	}
 
-
 	public Professor(String cpfProfessor, String nomeProfessor, String areaConhecimentoPretendida, int pontos) {
 		super();
 		this.cpfProfessor = cpfProfessor;

@@ -20,7 +20,7 @@ import controller.DisciplinaController;
 import controller.InscricaoController;
 import controller.ProfessorController;
 
-public class Tela extends JFrame {
+public class TelaSistema extends JFrame {
 
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
@@ -45,23 +45,12 @@ public class Tela extends JFrame {
 	/**
 	 * Launch the application.
 	 */
-	public static void main(String[] args) {
-		EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				try {
-					Tela frame = new Tela();
-					frame.setVisible(true);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		});
-	}
+	
 
 	/**
 	 * Create the frame.
 	 */
-	public Tela() {
+	public TelaSistema() {
 		setTitle("Faculdade");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 640, 480);
@@ -420,7 +409,7 @@ public class Tela extends JFrame {
 		
 	
 		
-		//instandcias das classes Controllers:
+		//instancias das classes Controllers:
 		DisciplinaController dCont = new DisciplinaController(tfDisciplinaCodigo, tfDisciplinaNome, tfDisciplinaDiaDaSemana, tfDisciplinaHorarioDaAula, tfDisciplinaHorasDiarias, tfDisciplinaCodigoCurso, taDisciplina);
 		CursoController cCont = new CursoController(tfCursoCodigo, tfCursoNome, tfCursoAreaConhecimento, textAreaCurso);
 		ProfessorController pCont = new ProfessorController(tfCpfProfessor, tfNomeProfessor, tfAreaConhecimento, tfPontos, taProfessor);

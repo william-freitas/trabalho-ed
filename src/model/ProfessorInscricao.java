@@ -1,6 +1,7 @@
 package model;
 
 public class ProfessorInscricao {
+	
     private Professor professor;
     private int pontuacao;
 

@@ -2,13 +2,8 @@ package controller;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
 
+import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
@@ -18,6 +13,9 @@ import br.edu.fateczl.ordenacao.BubbleSort;
 import model.Disciplina;
 import model.Inscricao;
 import model.Professor;
+import model.dao.DisciplinaDAO;
+import model.dao.InscricaoDAO;
+import model.dao.ProfessorDAO;
 //import model.ProfessorInscricao;
 
 public class InscricaoController implements ActionListener {
@@ -39,7 +37,7 @@ public class InscricaoController implements ActionListener {
         this.textAreaInscricoesAbertas = textAreaInscricoesAbertas;
     }
     
-
+    InscricaoDAO dao = new InscricaoDAO();
 
 	@Override
     public void actionPerformed(ActionEvent e) {
@@ -53,7 +51,12 @@ public class InscricaoController implements ActionListener {
             } else if (comando.equals("Atualizar")) {
                 atualizarInscricao();
             } else if (comando.equals("Remover")) {
-                removerInscricao();
+            	int confirmacao = JOptionPane.showConfirmDialog(null, "Tem certeza que deseja excluir?","Confirmação de Remoção", JOptionPane.YES_NO_OPTION);
+            	if(confirmacao == JOptionPane.YES_OPTION) {
+            		removerInscricao();
+            	}else {
+            		return;
+            	}
             } else if (comando.equals("Consultar Inscricoes Abertas")) {
             	consultarInscricoesAbertas();
             } else if (comando.equals("Consultar por disciplina")) {
@@ -72,8 +75,10 @@ public class InscricaoController implements ActionListener {
         int codigoDisciplina = Integer.parseInt(tfCodigoDisciplina.getText());
         int codigoProcesso = Integer.parseInt(tfCodigoProcesso.getText());
 
-        boolean professorExiste = validarProfessor(cpfProfessor);
-        boolean disciplinaExiste = validarDisciplina(codigoDisciplina);
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        DisciplinaDAO disciplinaDAO = new DisciplinaDAO();
+        boolean professorExiste = professorDAO.validarProfessor(cpfProfessor);
+        boolean disciplinaExiste = disciplinaDAO.validarDisciplina(codigoDisciplina);
 
         if (!professorExiste && !disciplinaExiste) {
             taInscricao.setText("Erro: Professor não encontrado e Disciplina não encontrada. Cadastre ambos antes de prosseguir.");
@@ -89,89 +94,17 @@ public class InscricaoController implements ActionListener {
         // Se passou nas validações, pode cadastrar
         Inscricao inscricao = new Inscricao(cpfProfessor, codigoDisciplina, codigoProcesso);
 
-        gravarArquivoInscricaoCsv(inscricao.toString());
+        dao.gravarArquivoInscricao(inscricao);
 
         limparCampos();
         taInscricao.setText("Inscrição cadastrada com sucesso.");
     }
     
-    private boolean validarProfessor(String cpf) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "professores.csv");
-
-        if (!arquivo.exists()) {
-            return false;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-        boolean encontrado = false;
-
-        while ((linha = br.readLine()) != null) {
-            String[] campos = linha.split(";");
-            String cpfArquivo = campos[0];
-
-            if (cpfArquivo.equals(cpf)) {
-                encontrado = true;
-                break;
-            }
-        }
-
-        br.close();
-        return encontrado;
-    }
-
-    private boolean validarDisciplina(int codigo) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "disciplinas.csv");
-
-        if (!arquivo.exists()) {
-            return false;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-        boolean encontrado = false;
-
-        while ((linha = br.readLine()) != null) {
-            String[] campos = linha.split(";");
-            int codigoArquivo = Integer.parseInt(campos[0]);
-
-            if (codigoArquivo == codigo) {
-                encontrado = true;
-                break;
-            }
-        }
-
-        br.close();
-        return encontrado;
-    }
-
-
-
     private void consultarInscricao() throws Exception {
         String cpfBusca = tfCpfProfessor.getText();
 
         Fila filaInscricoes = new Fila();
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "inscricoes.csv");
-
-        if (arquivo.exists()) {
-            BufferedReader br = new BufferedReader(new FileReader(arquivo));
-            String linha;
-
-            while ((linha = br.readLine()) != null) {
-                String[] campos = linha.split(";");
-                String cpf = campos[0];
-                int codigoDisciplina = Integer.parseInt(campos[1]);
-                int codigoProcesso = Integer.parseInt(campos[2]);
-
-                Inscricao inscricao = new Inscricao(cpf, codigoDisciplina, codigoProcesso);
-                filaInscricoes.insert(inscricao);
-            }
-
-            br.close();
-        }
+        filaInscricoes = dao.lerArquivoInscricao(filaInscricoes);
 
         boolean encontrada = false;
 
@@ -196,10 +129,11 @@ public class InscricaoController implements ActionListener {
     }
 
     private void atualizarInscricao() throws Exception {
-        Lista<Inscricao> listaInscricoes = lerArquivoInscricaoCsv();
+    	
+        Lista<Inscricao> listaInscricoes = dao.lerArquivoInscricao();
 
         if (listaInscricoes.isEmpty()) {
-            throw new Exception("Não há inscrições cadastradas para atualizar.");
+        	taInscricao.setText("Não há inscrições cadastradas para atualizar.");
         }
 
         String cpfBusca = tfCpfProfessor.getText();
@@ -216,19 +150,20 @@ public class InscricaoController implements ActionListener {
         }
 
         if (!atualizado) {
-            throw new Exception("Inscrição com CPF " + cpfBusca + " não encontrada.");
+        	taInscricao.setText("Inscrição com CPF " + cpfBusca + " não encontrada.");
         }
 
-        gravarArquivoInscricaoCsv(listaInscricoes);
+        dao.gravarArquivoInscricao(listaInscricoes);
         limparCampos();
         taInscricao.setText("Inscrição atualizada com sucesso.");
     }
 
     private void removerInscricao() throws Exception {
-        Lista<Inscricao> listaInscricoes = lerArquivoInscricaoCsv();
+    	
+        Lista<Inscricao> listaInscricoes = dao.lerArquivoInscricao();
 
         if (listaInscricoes.isEmpty()) {
-            throw new Exception("Não há inscrições cadastradas para remover.");
+        	taInscricao.setText("Não há inscrições cadastradas para remover.");
         }
 
         String cpfBusca = tfCpfProfessor.getText();
@@ -244,81 +179,12 @@ public class InscricaoController implements ActionListener {
         }
 
         if (!removido) {
-            throw new Exception("Inscrição com CPF " + cpfBusca + " não encontrada.");
+        	taInscricao.setText("Inscrição com CPF " + cpfBusca + " não encontrada.");
         }
 
-        gravarArquivoInscricaoCsv(listaInscricoes);
+        dao.gravarArquivoInscricao(listaInscricoes);
         limparCampos();
         taInscricao.setText("Inscrição removida com sucesso.");
-    }
-
-    private void gravarArquivoInscricaoCsv(String inscricao) throws IOException {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File dir = new File(path);
-
-        if (!dir.exists()) {
-            dir.mkdir();
-        }
-
-        File arquivo = new File(path, "inscricoes.csv");
-        boolean append = arquivo.exists();
-
-        FileWriter fw = new FileWriter(arquivo, append);
-        PrintWriter pw = new PrintWriter(fw);
-        pw.write(inscricao + "\r\n");
-        pw.flush();
-        pw.close();
-        fw.close();
-    }
-
-    private void gravarArquivoInscricaoCsv(Lista<Inscricao> lista) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File dir = new File(path);
-
-        if (!dir.exists()) {
-            dir.mkdir();
-        }
-
-        File arquivo = new File(path, "inscricoes.csv");
-        FileWriter fw = new FileWriter(arquivo, false);
-        PrintWriter pw = new PrintWriter(fw);
-
-        for (int i = 0; i < lista.size(); i++) {
-            Inscricao inscricao = lista.get(i);
-            pw.println(inscricao.toString());
-        }
-
-        pw.flush();
-        pw.close();
-        fw.close();
-    }
-
-    private Lista<Inscricao> lerArquivoInscricaoCsv() throws Exception {
-        Lista<Inscricao> lista = new Lista<>();
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "inscricoes.csv");
-
-        if (!arquivo.exists()) {
-            return lista;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-
-        while ((linha = br.readLine()) != null) {
-            if (!linha.trim().isEmpty()) {
-                String[] campos = linha.split(";");
-                String cpf = campos[0];
-                int codigoDisciplina = Integer.parseInt(campos[1]);
-                int codigoProcesso = Integer.parseInt(campos[2]);
-
-                Inscricao inscricao = new Inscricao(cpf, codigoDisciplina, codigoProcesso);
-                lista.addLast(inscricao);
-            }
-        }
-
-        br.close();
-        return lista;
     }
 
     private void limparCampos() {
@@ -327,16 +193,17 @@ public class InscricaoController implements ActionListener {
         tfCodigoProcesso.setText("");
     }
     
-    
     private void consultarInscricoesAbertas() throws Exception {
-        // Ler disciplinas
-        Lista<Disciplina> disciplinas = lerArquivoDisciplinaCsv2();
+        
+    	DisciplinaDAO disciplinaDAO = new DisciplinaDAO();
+        Lista<Disciplina> disciplinas = disciplinaDAO.lerArquivoDisciplina();
+        
         if (disciplinas.isEmpty()) {
         	textAreaInscricoesAbertas.setText("Não há disciplinas cadastradas.");
             return;
         }
 
-        // Descobrir quantos cursos existem (vamos assumir que códigos de curso são consecutivos a partir de 1)
+        // Descobrir quantos cursos existem (assumir que códigos de curso são consecutivos a partir de 1)
         int maiorCodigoCurso = 0;
         for (int i = 0; i < disciplinas.size(); i++) {
             Disciplina d = disciplinas.get(i);
@@ -353,7 +220,7 @@ public class InscricaoController implements ActionListener {
         }
 
         // Ler todas as inscrições
-        Lista<Inscricao> inscricoes = lerArquivoInscricaoCsv();
+        Lista<Inscricao> inscricoes = dao.lerArquivoInscricao();
 
         // Distribuir as inscrições na tabela de espalhamento
         for (int i = 0; i < inscricoes.size(); i++) {
@@ -397,48 +264,13 @@ public class InscricaoController implements ActionListener {
         textAreaInscricoesAbertas.setText(resultado.toString());
     }
     
-    private Lista<Disciplina> lerArquivoDisciplinaCsv2() throws Exception {
-	    Lista<Disciplina> lista = new Lista<>();
-
-	    String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-	    File arquivo = new File(path, "disciplinas.csv");
-
-	    if (!arquivo.exists()) {
-	        // Se o arquivo não existir, retorna lista vazia
-	    	System.out.println("Arquivo não encontrado ou não existe");
-	        return lista;
-	    }
-
-	    BufferedReader br = new BufferedReader(new FileReader(arquivo));
-	    String linha;
-
-	    while ((linha = br.readLine()) != null) {
-	        if (!linha.trim().isEmpty()) {
-	            String[] campos = linha.split(";");
-	            
-	            int codigoDisciplina = Integer.parseInt(campos[0]);
-	            String nomeDisciplina = campos[1];
-	            String diaSemana = campos[2];
-	            String horarioAula = campos[3];
-	            int horasDiarias = Integer.parseInt(campos[4]);
-	            int codigoCurso = Integer.parseInt(campos[5]);
-
-	            Disciplina disciplina = new Disciplina(codigoDisciplina, nomeDisciplina, diaSemana, horarioAula, horasDiarias, codigoCurso);
-	            lista.addLast(disciplina);
-	        }
-	    }
-	    
-	    br.close();
-	    return lista;
-	}
-
     private void consultarInscritosPorDisciplina(int codigoConsultaDisciplina) throws Exception {
     	//int codigoConsultaDisciplina = Integer.parseInt(tfConsultaCodigoDisciplinaInscricao.getText());
 
-        Lista<Inscricao> listaInscricoes = lerArquivoInscricaoCsv();
+        Lista<Inscricao> listaInscricoes = dao.lerArquivoInscricao();
          
-
         Lista<Inscricao> inscricoesFiltradas = new Lista<>();
+        
         Lista<Professor> professoresFiltrados = new Lista<>();
 
         // Filtra as inscrições da disciplina
@@ -446,7 +278,8 @@ public class InscricaoController implements ActionListener {
             Inscricao insc = listaInscricoes.get(i);
             if (insc.getCodigoDisciplina() == codigoConsultaDisciplina) {
                 inscricoesFiltradas.addLast(insc);
-                Professor prof = buscarProfessor(insc.getCpfProfessor());
+                ProfessorDAO professorDAO = new ProfessorDAO();
+                Professor prof = professorDAO.buscarProfessor(insc.getCpfProfessor());
                 if (prof != null) {
                     professoresFiltrados.addLast(prof);
                 }
@@ -492,47 +325,5 @@ public class InscricaoController implements ActionListener {
     }
 
     
-    private Lista<Professor> lerArquivoProfessorCsv() throws Exception {
-        Lista<Professor> lista = new Lista<>();
-
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "professores.csv");
-
-        if (!arquivo.exists()) {
-            return lista;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-
-        while ((linha = br.readLine()) != null) {
-            if (!linha.trim().isEmpty()) {
-                String[] campos = linha.split(";");
-
-                String cpf = campos[0];
-                String nome = campos[1];
-                String area = campos[2];
-                int pontos = Integer.parseInt(campos[3]);
-
-                Professor p = new Professor(cpf, nome, area, pontos);
-                lista.addLast(p);
-            }
-        }
-
-        br.close();
-        return lista;
-    }
     
-    private Professor buscarProfessor(String cpf) throws Exception {
-        Lista<Professor> professores = lerArquivoProfessorCsv(); // método que lê o arquivo e devolve a lista
-
-        for (int i = 0; i < professores.size(); i++) {
-            Professor professor = professores.get(i);
-            if (professor.getCpfProfessor().equals(cpf)) {
-                return professor;
-            }
-        }
-
-        return null; // se não encontrar
-    }
 }

@@ -2,22 +2,16 @@ package controller;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 
+import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
 import br.edu.fateczl.Lista.Lista;
 import br.edu.fateczl.filaObj.Fila;
 import model.Disciplina;
+import model.dao.CursoDAO;
+import model.dao.DisciplinaDAO;
 
 public class DisciplinaController implements ActionListener{
 
@@ -43,56 +37,37 @@ public class DisciplinaController implements ActionListener{
 		this.taDisciplina = taDisciplina;
 	}
     
+    //instancia a classe DisciplinaDAO
+    DisciplinaDAO dao = new DisciplinaDAO();
+    
     
     @Override
 	public void actionPerformed(ActionEvent e) {
 		String comando = e.getActionCommand();
 		
-		if(comando.equals("Cadastrar")) {
-			
-			try {
-				cadastraDisciplina();
-				
-			} catch (Exception e1) {
+		
+		try {
+			if(comando.equals("Cadastrar")) {
+				cadastrarDisciplina();
+		    } else if(comando.equals("Consultar")) {
+		    	consultarDisciplina();
+		    } else if(comando.equals("Atualizar")) {
+		    	atualizarDisciplina();
+		    } else if(comando.equals("Remover")) {
+		    	int confirmacao = JOptionPane.showConfirmDialog(null, "Tem certeza que deseja excluir?","Confirmação de Remoção", JOptionPane.YES_NO_OPTION);
+            	if(confirmacao == JOptionPane.YES_OPTION) {
+            		removerDisciplina();
+            	}else {
+            		return;
+            	}
+		    } 
+		}catch (Exception e1) {
 				e1.printStackTrace();
 			}
-		}
+    }	
 		
-		if(comando.equals("Consultar")) {
-			
-			try {
-				consultaDisciplina();
-				
-			} catch (Exception e1) {
-				e1.printStackTrace();
-			}
-		}
-		
-		if(comando.equals("Atualizar")) {
-			
-			try {
-				atualizaDisciplina();
-				
-			} catch (Exception e1) {
-				e1.printStackTrace();
-			}
-		}
-		
-		if(comando.equals("Remover")) {
-			
-			try {
-				removeDisciplina();
-				
-			} catch (Exception e1) {
-				e1.printStackTrace();
-			}
-		}
-		
-	}
-    
-
-	// CADASTRA no final da lista
-    private void cadastraDisciplina() throws Exception {
+ 
+    private void cadastrarDisciplina() throws Exception {
         int codigoDisciplina = Integer.parseInt(tfDisciplinaCodigo.getText());
         String nomeDisciplina = tfDisciplinaNome.getText();
         String diaSemana = tfDisciplinaDiaDaSemana.getText();
@@ -100,8 +75,10 @@ public class DisciplinaController implements ActionListener{
         int horasDiarias = Integer.parseInt(tfDisciplinaHorasDiarias.getText());
         int codigoCurso = Integer.parseInt(tfDisciplinaCodigoCurso.getText());
 
-        boolean cursoExiste = validarCurso(codigoCurso);
-        boolean disciplinaExiste = validarDisciplina(codigoDisciplina);
+        
+        CursoDAO cursoDAO = new CursoDAO();
+        boolean cursoExiste = cursoDAO.validarCurso(codigoCurso);
+        boolean disciplinaExiste = dao.validarDisciplina(codigoDisciplina);
 
         if (!cursoExiste) {
             taDisciplina.setText("Erro: Curso não encontrado. Cadastre o curso antes de cadastrar a disciplina.");
@@ -121,109 +98,20 @@ public class DisciplinaController implements ActionListener{
         disciplina.setHorasDiarias(horasDiarias);
         disciplina.setCodigoCurso(codigoCurso);
 
-        gravarArquivoDisciplinaCsv2(disciplina.toString());
+        dao.gravarArquivoDisciplina(disciplina);
 
-        // Limpar campos
-        tfDisciplinaCodigo.setText("");
-        tfDisciplinaNome.setText("");
-        tfDisciplinaDiaDaSemana.setText("");
-        tfDisciplinaHorarioDaAula.setText("");
-        tfDisciplinaHorasDiarias.setText("");
-        tfDisciplinaCodigoCurso.setText("");
+        limparCampos();
 
         taDisciplina.setText("Disciplina cadastrada com sucesso.");
     }
 
-    private boolean validarCurso(int codigoCurso) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "cursos.csv");
-
-        if (!arquivo.exists()) {
-            return false;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-        boolean encontrado = false;
-
-        while ((linha = br.readLine()) != null) {
-            String[] campos = linha.split(";");
-            int codigoArquivo = Integer.parseInt(campos[0]);
-
-            if (codigoArquivo == codigoCurso) {
-                encontrado = true;
-                break;
-            }
-        }
-
-        br.close();
-        return encontrado;
-    }
-
-    private boolean validarDisciplina(int codigoDisciplina) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "disciplinas.csv");
-
-        if (!arquivo.exists()) {
-            return false;
-        }
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        String linha;
-        boolean encontrado = false;
-
-        while ((linha = br.readLine()) != null) {
-            String[] campos = linha.split(";");
-            int codigoArquivo = Integer.parseInt(campos[0]);
-
-            if (codigoArquivo == codigoDisciplina) {
-                encontrado = true;
-                break;
-            }
-        }
-
-        br.close();
-        return encontrado;
-    }
-
-    
-    
-    // CONSULTA usando FILA: todas as disciplinas são inseridas na fila
-    private void consultaDisciplina() throws Exception {
+    private void consultarDisciplina() throws Exception {
         
         int codigoBusca = Integer.parseInt(tfDisciplinaCodigo.getText());
-        
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "disciplinas.csv");
 
         Fila filaDisciplinas = new Fila();
 
-        if (arquivo.exists() && arquivo.isFile()) {
-            FileInputStream fis = new FileInputStream(arquivo);
-            InputStreamReader isr = new InputStreamReader(fis);
-            BufferedReader buffer = new BufferedReader(isr);
-
-            String linha = buffer.readLine();
-
-            while (linha != null) {
-                String[] campos = linha.split(";");
-                int codigoDisciplina = Integer.parseInt(campos[0]);
-                String nomeDisciplina = campos[1];
-                String diaSemana = campos[2];
-                String horarioAula = campos[3];
-                int horasDiarias = Integer.parseInt(campos[4]);
-                int codigoCurso = Integer.parseInt(campos[5]);
-
-                Disciplina disciplina = new Disciplina(codigoDisciplina, nomeDisciplina, diaSemana, horarioAula, horasDiarias, codigoCurso);
-                filaDisciplinas.insert(disciplina);  // Insere na fila
-
-                linha = buffer.readLine();
-            }
-
-            buffer.close();
-            isr.close();
-            fis.close();
-        }
+        filaDisciplinas = dao.lerArquivoDisciplina(filaDisciplinas);
 
         boolean encontrada = false;
 
@@ -246,23 +134,15 @@ public class DisciplinaController implements ActionListener{
             taDisciplina.setText("Disciplina não encontrada.");
         }
 
-        // Limpar os campos após a consulta
-        tfDisciplinaCodigo.setText("");
-        tfDisciplinaNome.setText("");
-        tfDisciplinaDiaDaSemana.setText("");
-        tfDisciplinaHorarioDaAula.setText("");
-        tfDisciplinaHorasDiarias.setText("");
-        tfDisciplinaCodigoCurso.setText("");
+        limparCampos();
     }
 
-    
-    // ATUALIZA posição da lista
-    private void atualizaDisciplina() throws Exception {
+    private void atualizarDisciplina() throws Exception {
     	
-    	Lista<Disciplina> listaArquivoDisciplina = lerArquivoDisciplinaCsv2();
+    	Lista<Disciplina> listaArquivoDisciplina = dao.lerArquivoDisciplina();
     	
     	if (listaArquivoDisciplina.isEmpty()) {
-	        throw new Exception("Não há disciplinas cadastradas para atualizar.");
+    		taDisciplina.setText("Não há disciplinas cadastradas para atualizar.");
 	    }
     	
     	Disciplina disciplinaAtualizada = new Disciplina();
@@ -286,32 +166,25 @@ public class DisciplinaController implements ActionListener{
 	    }
 
 	    if (!atualizado) {
-	        throw new Exception("Disciplina com código " + disciplinaAtualizada.getCodigoDisciplina() + " não encontrada.");
+	    	taDisciplina.setText("Disciplina com código " + disciplinaAtualizada.getCodigoDisciplina() + " não encontrada.");
 	    }
 
-	    gravarArquivoDisciplinaCsv2(listaArquivoDisciplina);
+	    dao.gravarArquivoDisciplina(listaArquivoDisciplina);
 	    
 	    
-	  //para apagar os campos:
-    	tfDisciplinaCodigo.setText("");
-    	tfDisciplinaNome.setText("");
-    	tfDisciplinaDiaDaSemana.setText("");
-    	tfDisciplinaHorarioDaAula.setText("");
-    	tfDisciplinaHorasDiarias.setText("");
-    	tfDisciplinaCodigoCurso.setText("");
+	    limparCampos();
     	
     	taDisciplina.setText("Disciplina atualizada");
     	
     }
     
-    // REMOVE posição da lista
-    private void removeDisciplina() throws Exception {
+    private void removerDisciplina() throws Exception {
     	
     	 
-    	 Lista<Disciplina> listaArquivoDisciplina = lerArquivoDisciplinaCsv2();
+    	 Lista<Disciplina> listaArquivoDisciplina = dao.lerArquivoDisciplina();
 
     	    if (listaArquivoDisciplina.isEmpty()) {
-    	        throw new Exception("Não há disciplinas cadastradas para remover.");
+    	    	taDisciplina.setText("Não há disciplinas cadastradas para remover.");
     	    }
     	    
     	    Disciplina removerDisciplina = new Disciplina();
@@ -330,147 +203,27 @@ public class DisciplinaController implements ActionListener{
     	    }
 
     	    if (!removido) {
-    	        throw new Exception("Disciplina com código " + removerDisciplina + " não encontrada.");
+    	    	taDisciplina.setText("Disciplina com código " + removerDisciplina + " não encontrada.");
     	    }
 
-    	    gravarArquivoDisciplinaCsv2(listaArquivoDisciplina);
+    	    dao.gravarArquivoDisciplina(listaArquivoDisciplina);
     	    
-    	    removerDisciplinaDasInscricoes(removerDisciplina.getCodigoDisciplina());
     	    
-    	  //para apagar os campos:
-        	tfDisciplinaCodigo.setText("");
-        	tfDisciplinaNome.setText("");
-        	tfDisciplinaDiaDaSemana.setText("");
-        	tfDisciplinaHorarioDaAula.setText("");
-        	tfDisciplinaHorasDiarias.setText("");
-        	tfDisciplinaCodigoCurso.setText("");
+    	    //InscricaoDAO inscricaDAO = new InscricaoDAO();
+    	    //inscricaoDAO.removerDisciplinaDasInscricoes(removerDisciplina.getCodigoDisciplina());
+    	    
+    	    limparCampos();
         	
         	taDisciplina.setText("Disciplina removida");
     }
 
-
-    private void removerDisciplinaDasInscricoes(int codDisciplina) throws Exception {
-        String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-        File arquivo = new File(path, "inscricoes.csv");
-
-        if (!arquivo.exists()) {
-            // Se o arquivo ainda nem existir, não precisa fazer nada
-            return;
-        }
-
-        File tempFile = new File(path, "inscricoes_temp.csv");
-
-        BufferedReader br = new BufferedReader(new FileReader(arquivo));
-        BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile));
-
-        String linha;
-
-        while ((linha = br.readLine()) != null) {
-            String[] campos = linha.split(";");
-
-            int codigoDisciplinaNaLinha = Integer.parseInt(campos[1]);  // Supondo que campo 1 é o código da disciplina na inscrição
-
-            if (codigoDisciplinaNaLinha != codDisciplina) {
-                // Só grava as inscrições que não têm o código da disciplina que está sendo removida
-                bw.write(linha);
-                bw.newLine();
-            }
-        }
-
-        br.close();
-        bw.close();
-
-        // Agora substitui o arquivo original pelo temporário
-        arquivo.delete();
-        tempFile.renameTo(arquivo);
-    }
-
-
- 
-	private void gravarArquivoDisciplinaCsv2(String disciplina) throws IOException {
-		
-		String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-		File dir = new File(path);
-		
-		if(!dir.exists()) {
-			dir.mkdir();
-		}
-		
-		File arquivo = new File(path,"disciplinas.csv");
-		
-		boolean existe = false;
-		if(arquivo.exists()) {
-			existe = true;
-		}
-		
-		FileWriter fw = new FileWriter(arquivo, existe);
-		PrintWriter pw = new PrintWriter(fw);
-		pw.write(disciplina+"\r\n");
-		pw.flush();
-		pw.close();
-		fw.close();
-		
+    
+	private void limparCampos() {
+		tfDisciplinaCodigo.setText("");
+        tfDisciplinaNome.setText("");
+        tfDisciplinaDiaDaSemana.setText("");
+        tfDisciplinaHorarioDaAula.setText("");
+        tfDisciplinaHorasDiarias.setText("");
+        tfDisciplinaCodigoCurso.setText("");
 	}
-	
-	
-	private void gravarArquivoDisciplinaCsv2(Lista<Disciplina> lista) throws Exception {
-	    String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-	    File dir = new File(path);
-
-	    if (!dir.exists()) {
-	        dir.mkdir();
-	    }
-
-	    File arquivo = new File(path, "disciplinas.csv");
-
-	    FileWriter fw = new FileWriter(arquivo, false); // false para sobrescrever
-	    PrintWriter pw = new PrintWriter(fw);
-
-	    for (int i = 0; i < lista.size(); i++) {
-	        Disciplina disciplina = lista.get(i);
-	        pw.println(disciplina.toString());
-	    }
-
-	    pw.flush();
-	    pw.close();
-	    fw.close();
-	}
-
-	
-	//LEITURA EM CSV
-	private Lista<Disciplina> lerArquivoDisciplinaCsv2() throws Exception {
-	    Lista<Disciplina> lista = new Lista<>();
-
-	    String path = System.getProperty("user.home") + File.separator + "SistemaCadastroFaculdade";
-	    File arquivo = new File(path, "disciplinas.csv");
-
-	    if (!arquivo.exists()) {
-	        // Se o arquivo não existir, retorna lista vazia
-	    	System.out.println("Arquivo não encontrado ou não existe");
-	        return lista;
-	    }
-
-	    BufferedReader br = new BufferedReader(new FileReader(arquivo));
-	    String linha;
-
-	    while ((linha = br.readLine()) != null) {
-	        if (!linha.trim().isEmpty()) {
-	            String[] campos = linha.split(";");
-	            
-	            int codigoDisciplina = Integer.parseInt(campos[0]);
-	            String nomeDisciplina = campos[1];
-	            String diaSemana = campos[2];
-	            String horarioAula = campos[3];
-	            int horasDiarias = Integer.parseInt(campos[4]);
-	            int codigoCurso = Integer.parseInt(campos[5]);
-
-	            Disciplina disciplina = new Disciplina(codigoDisciplina, nomeDisciplina, diaSemana, horarioAula, horasDiarias, codigoCurso);
-	            lista.addLast(disciplina);
-	        }
-	    }
-
-	    br.close();
-	    return lista;
-	}
-
 }
